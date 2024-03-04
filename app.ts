@@ -1,6 +1,12 @@
 import { URL } from "url";
 import { db } from "./db";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "*",
+  "Access-Control-Allow-Headers": "*",
+};
+
 const LINK = `
 CREATE TABLE IF NOT EXISTS Links (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,27 +27,7 @@ Bun.serve({
       case "GET": {
         switch (path.pathname) {
           case "/v1/short": {
-            const url = path?.searchParams.get("url");
-            if (!url)
-              return Response.json(
-                { message: "please provide url/link" },
-                {
-                  status: 400,
-                }
-              );
-            try {
-              const result = db.prepare(
-                "INSERT INTO Links (link) VALUES(?) RETURNING *",
-                [url]
-              );
-              const user = result.get() as TLink;
-              return Response.json({ link: `bunshort.ly/${user.id}` });
-            } catch (error) {
-              return Response.json({
-                message: `cannot insert into database`,
-              });
-            } finally {
-            }
+            return Response.json({ message: "Ok" }, { status: 404 });
           }
           default: {
             const id = Number(path.pathname.split("/").pop());
@@ -68,15 +54,52 @@ Bun.serve({
           }
         }
       }
+      case "OPTIONS": {
+        return new Response(null, {
+          status: 200,
+          headers: CORS_HEADERS,
+        });
+      }
       case "POST": {
         switch (path.pathname) {
           case "/v1/short": {
-            return Response.json({ message: "Ok" });
+            const url = path?.searchParams.get("url");
+            if (!url)
+              return Response.json(
+                { message: "please provide url/link" },
+                {
+                  status: 400,
+                  headers: CORS_HEADERS,
+                }
+              );
+            try {
+              const result = db.prepare(
+                "INSERT INTO Links (link) VALUES(?) RETURNING *",
+                [url]
+              );
+              const user = result.get() as TLink;
+              return Response.json(
+                { link: `http://127.0.0.1:9021/${user.id}` },
+                {
+                  headers: CORS_HEADERS,
+                }
+              );
+            } catch (error) {
+              return Response.json(
+                {
+                  message: `cannot insert into database`,
+                },
+                {
+                  headers: CORS_HEADERS,
+                }
+              );
+            } finally {
+            }
           }
         }
       }
     }
     return Response.json({ text: "Ok" });
   },
-  port: 9201,
+  port: 9021,
 });
